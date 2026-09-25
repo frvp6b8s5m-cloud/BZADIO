@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Bplugins // Artist Core</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body class="auth-page">
+  <!-- PART 1: PRIVATE TERMINAL -->
+  <main class="auth-shell">
+    <div class="auth-corner auth-corner-a" aria-hidden="true">[FLOW_AXIS // PRIVATE_CHANNEL]</div>
+    <div class="auth-corner auth-corner-b" aria-hidden="true">[BZAUDIO // ADMISSION]</div>
+
+    <section class="auth-card glass-panel" aria-labelledby="login-title">
+      <a class="back-link" href="./index.html">← RETURN_TO_FLOOR</a>
+      <div class="auth-icon" aria-hidden="true">♙</div>
+      <p class="eyebrow">SECURE ARTIST GATEWAY / 002</p>
+      <h1 id="login-title">ARTIST_CORE_LOGIN</h1>
+      <p class="auth-subtitle">Perfect your sound. Trade your work. Keep the signal moving.</p>
+
+      <form id="login-form" autocomplete="off">
+        <label for="username">ARTIST_ID //</label>
+        <input id="username" name="username" type="text" autocomplete="username" spellcheck="false" required>
+        <label for="password">SECURE_KEY //</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required>
+        <button class="primary-command" type="submit">[INITIALIZE_ENGINE]</button>
+        <p id="login-status" class="status-line" role="alert" aria-live="assertive">[GATE // READY]</p>
+      </form>
+
+      <div class="auth-meter" aria-hidden="true"><span></span></div>
+      <div class="auth-footer"><span>SHA-256</span><span>LOCAL_VERIFY</span><span>NO_PUBLIC_ROUTE</span></div>
+    </section>
+
+    <!-- PART 2: ADMISSION INFORMATION -->
+    <aside class="auth-note glass-panel">
+      <span class="eyebrow">SIGNAL_NOTE</span>
+      <p>The public floor intentionally has no visible administration link. Type the private sequence on the public page to reach this gateway.</p>
+      <p class="muted">The credential combination is transformed with the browser Web Crypto API before comparison. No plaintext credential is stored in this document.</p>
+    </aside>
+
+    <!-- PART 3: CRYPTO LOGIN ENGINE -->
+    <script src="./login-engine.js" defer></script>
+  </main>
+</body>
+</html>

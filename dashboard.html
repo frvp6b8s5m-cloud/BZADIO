@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Bplugins // Curator Workbench</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body class="dashboard-page">
+  <!-- PART 1: WORKBENCH SHELL -->
+  <header class="site-header dashboard-header">
+    <a class="brand" href="./index.html">BPLUGINS <span>//</span> BZAUDIO</a>
+    <div class="dashboard-actions">
+      <span class="status-chip">PRIVATE // CURATOR</span>
+      <button id="logout-button" class="text-button" type="button">[LOGOUT]</button>
+    </div>
+  </header>
+
+  <main class="dashboard-shell">
+    <div class="corner-code corner-a" aria-hidden="true">[WORKBENCH // STAGING]</div>
+    <div class="corner-code corner-c" aria-hidden="true">[LIVE_CACHE // MONITORED]</div>
+
+    <section class="page-panel glass-panel">
+      <div class="section-heading">
+        <p class="eyebrow">ADMIN / DATA INGESTION</p>
+        <h1>Curator Workbench</h1>
+        <p>Paste a submitted barter package into the ingestion terminal. It is parsed, validated and staged before it can touch the live floor.</p>
+      </div>
+
+      <form id="ingest-form" class="ingest-form">
+        <label for="package-input">RAW BARTER PACKAGE //</label>
+        <textarea id="package-input" rows="12" spellcheck="false" placeholder='{"type":"Bplugins barter submission","outgoingAssets":["Plugin A"],"seekingTargets":["Plugin B"],"note":"..."}'></textarea>
+        <div class="command-row">
+          <button class="primary-command" type="submit">[STAGE_PACKAGE]</button>
+          <button id="clear-stage" class="text-button" type="button">[CLEAR_STAGE]</button>
+        </div>
+        <p id="ingest-status" class="status-line" role="status">[INGEST // IDLE]</p>
+      </form>
+    </section>
+
+    <!-- PART 2: STAGING / LIVE TABLE -->
+    <section class="page-panel glass-panel">
+      <div class="section-heading compact">
+        <p class="eyebrow">REAL-TIME DATA TABLE</p>
+        <h2>Trade Queue</h2>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>STATE</th>
+              <th>OUTGOING</th>
+              <th>SEEKING</th>
+              <th>NOTE</th>
+              <th>CREATED</th>
+              <th>ACTION</th>
+            </tr>
+          </thead>
+          <tbody id="trade-table"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- PART 3: CRITICAL CONTROLS -->
+    <section class="critical-panel glass-panel">
+      <div>
+        <p class="eyebrow">CRITICAL SYSTEM CONTROL</p>
+        <h2>Live floor cache</h2>
+        <p>Purging clears every promoted trade stored by this browser. The action requires confirmation.</p>
+      </div>
+      <button id="purge-button" class="danger-button" type="button">[PURGE_ALL_ACTIVE_FLOOR_TRADES]</button>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const SESSION_KEY = "bplugins_authenticated";
+      const LIVE_KEY = "bplugins_live_trades";
+      const STAGE_KEY = "bplugins_staged_trade";
+
+      if (sessionStorage.getItem(SESSION_KEY) !== "true") {
+        window.location.replace("./admin.html");
+        return;
+      }
+
+      const tableBody = document.getElementById("trade-table");
+      const status = document.getElementById("ingest-status");
+      let stagedTrade = null;
+
+      function readLive() {
+        try {
+          const value = JSON.parse(localStorage.getItem(LIVE_KEY) || "[]");
+          return Array.isArray(value) ? value : [];
+        } catch {
+          return [];
+        }
+      }
+
+      function writeLive(trades) {
+        localStorage.setItem(LIVE_KEY, JSON.stringify(trades));
+        window.dispatchEvent(new StorageEvent("storage", { key: LIVE_KEY }));
+      }
+
+      function escapeHTML(value) {
+        return String(value)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      }
+
+      function render() {
+        const live = readLive();
+        const rows = [];
+        if (stagedTrade) rows.push({ ...stagedTrade, state: "STAGED", id: "stage" });
+        live.forEach((trade, index) => rows.push({ ...trade, state: "LIVE", id: index }));
+
+        tableBody.innerHTML = rows.length ? rows.map(trade => `
+          <tr class="${trade.state === "STAGED" ? "staged-row" : ""}">
+            <td><span class="state-chip ${trade.state.toLowerCase()}">${escapeHTML(trade.state)}</span></td>
+            <td>${escapeHTML((trade.outgoingAssets || []).join(" + "))}</td>
+            <td>${escapeHTML((trade.seekingTargets || []).join(" + "))}</td>
+            <td>${escapeHTML(trade.note || "—")}</td>
+            <td>${escapeHTML(trade.createdAt || "—")}</td>
+            <td>${trade.state === "STAGED" ? '<button class="promote-button text-button" type="button">[PROMOTE]</button>' : "LIVE"}</td>
+          </tr>
+        `).join("") : `<tr><td colspan="6" class="empty-cell">[NO_ACTIVE_TRADES]</td></tr>`;
+      }
+
+      document.getElementById("ingest-form").addEventListener("submit", event => {
+        event.preventDefault();
+
+        try {
+          const raw = document.getElementById("package-input").value.trim();
+          if (!raw) throw new Error("Paste a JSON package first.");
+
+          const parsed = JSON.parse(raw);
+          if (!Array.isArray(parsed.outgoingAssets) || !Array.isArray(parsed.seekingTargets)) {
+            throw new Error("outgoingAssets and seekingTargets must be arrays.");
+          }
+          if (!parsed.outgoingAssets.length || !parsed.seekingTargets.length) {
+            throw new Error("Both asset lists must contain at least one item.");
+          }
+
+          stagedTrade = {
+            type: parsed.type || "Bplugins barter submission",
+            createdAt: parsed.createdAt || new Date().toISOString(),
+            outgoingAssets: parsed.outgoingAssets.map(String).map(v => v.trim()).filter(Boolean),
+            seekingTargets: parsed.seekingTargets.map(String).map(v => v.trim()).filter(Boolean),
+            note: String(parsed.note || "").trim()
+          };
+
+          sessionStorage.setItem(STAGE_KEY, JSON.stringify(stagedTrade));
+          status.textContent = "[STAGING // PACKAGE_PARSED // READY_FOR_REVIEW]";
+          render();
+        } catch (error) {
+          status.textContent = `[ERROR // ${error.message}]`;
+        }
+      });
+
+      tableBody.addEventListener("click", event => {
+        if (!event.target.classList.contains("promote-button") || !stagedTrade) return;
+
+        const live = readLive();
+        live.unshift(stagedTrade);
+        writeLive(live);
+        stagedTrade = null;
+        sessionStorage.removeItem(STAGE_KEY);
+        status.textContent = "[LIVE_CACHE // ROW_INTEGRATED]";
+        render();
+      });
+
+      document.getElementById("clear-stage").addEventListener("click", () => {
+        stagedTrade = null;
+        sessionStorage.removeItem(STAGE_KEY);
+        status.textContent = "[STAGING // CLEARED]";
+        render();
+      });
+
+      document.getElementById("purge-button").addEventListener("click", () => {
+        if (!confirm("Purge every active floor trade from this browser? This cannot be undone.")) return;
+        localStorage.removeItem(LIVE_KEY);
+        stagedTrade = null;
+        sessionStorage.removeItem(STAGE_KEY);
+        status.textContent = "[LIVE_CACHE // PURGED]";
+        render();
+      });
+
+      document.getElementById("logout-button").addEventListener("click", () => {
+        sessionStorage.removeItem(SESSION_KEY);
+        sessionStorage.removeItem(STAGE_KEY);
+        window.location.replace("./admin.html");
+      });
+
+      try {
+        stagedTrade = JSON.parse(sessionStorage.getItem(STAGE_KEY) || "null");
+      } catch {
+        stagedTrade = null;
+      }
+
+      render();
+    })();
+  </script>
+</body>
+</html>
